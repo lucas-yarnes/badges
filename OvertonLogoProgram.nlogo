@@ -291,7 +291,7 @@ to update-output
     [
       foreach link-list [
         the-link ->
-        output-print (word item 0 the-link "\t\t\t\t" item 1 the-link "\t\t" item 2 the-link "\t\t" item 3 the-link)
+        output-print (word item 2 the-link "\t\t\t\t" item 0 the-link "\t\t" item 1 the-link "\t\t" item 3 the-link)
       ]
     ]
     which-output = "number-interactions"
@@ -446,7 +446,7 @@ to update
 end
 
 to play
-  if pointer >= length link-list
+  if pointer >= length link-list or item 2 item pointer link-list >= item 2 item (length link-list - 1) link-list
   [
     stop
   ]
@@ -464,19 +464,20 @@ to play
 end
 
 to check
-  if pointer >= length link-list
+  if pointer >= length link-list or item 2 item pointer link-list >= item 2 item (length link-list - 1) link-list
   [
     stop
   ]
   ifelse regard-time?
   [
-    let next-interaction-time item (pointer + 1) link-list
+    let next-interaction-time item 2 item (pointer + 1) link-list
     if next-interaction-time < time
     [
+      set pointer pointer + 1
     ]
   ]
   [
-
+    set pointer pointer + 1
   ]
   let the-link item pointer link-list
   set time time + 1
@@ -589,7 +590,7 @@ to fix-data
   set link-list []
   let index 0
   let link-num 0
-  set all-interactions sort-by [ [a b] -> first a < first b ] all-interactions
+  set all-interactions sort-by [ [a b] -> item 2 a < item 2 b ] all-interactions
   foreach all-interactions [
     the-link ->
     let pair []
@@ -657,7 +658,7 @@ to fix-data
     ]
     set link-num link-num + 1
   ]
-  set link-list sort-by [ [a b] -> first a < first b ] link-list
+  set link-list sort-by [ [a b] -> item 2 a < item 2 b ] link-list
 end
 
 to-report create-random-id
@@ -905,7 +906,7 @@ time
 time
 0
 1000
-69.0
+208.0
 1
 1
 NIL
@@ -1132,7 +1133,7 @@ SWITCH
 67
 regard-time?
 regard-time?
-0
+1
 1
 -1000
 
