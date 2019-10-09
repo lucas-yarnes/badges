@@ -1,10 +1,11 @@
 extensions [ web table ]
 breed [ badges badge ]
 badges-own [ module-id immune? infected? interactions first-infected? ]
-globals [ data-stream data-list num-data url prev-length new-room-id new-room-uuid connected-badges link-list all-interactions which-output timestamp prev-chance-spread prev-num-initial-infected prev-chance-immune prev-percent-initial-infected pointer badges-present]
+globals [ total-num-infected data-stream data-list num-data url prev-length new-room-id new-room-uuid connected-badges link-list all-interactions which-output timestamp prev-chance-spread num-initial prev-chance-immune prev-percent-initial-infected pointer badges-present]
 
 ;Legit procedures
 to setup
+  ca
   reset
   setup-output
   clear-turtles
@@ -25,7 +26,7 @@ to setup
     fill-room
     ifelse use-percent
     [
-      let num-initial floor (percent-initial-infected / 100.0 * count badges)
+      set num-initial floor (percent-initial-infected / 100.0 * count badges)
       ask n-of num-initial badges
       [
         set infected? true
@@ -315,7 +316,7 @@ to update-output
     ]
     which-output = "stats"
     [
-      output-print word "Total Infected Persons:\t\t\t" count badges with [infected? = true]
+      output-print word "Total Infected Persons:\t\t\t" total-num-infected
       output-print word "Total Interactions:\t\t\t" length link-list
       output-print word "Total Number of Immune Persons:\t\t" count badges with [immune? = true]
     ]
@@ -336,6 +337,7 @@ to save-interaction-set
 end
 
 to load-interaction-set
+  ca
   file-close-all
   user-message "Choose Dataset"
   let f user-file
@@ -353,6 +355,8 @@ to load-interaction-set
   ;  user-message ( word "There was an error in parsing the datafile:\n" error-message )
   ;]
   file-close-all
+  find-turtles
+  fix-data
 end
 
 ;Takes a list of interactions from a file and creates badge objects for each turtle involved in some type of interaction
@@ -383,13 +387,16 @@ to find-turtles
       ]
       set infected? false
       set first-infected? false
-      set label module-id
+      if show-label
+      [
+        set label module-id
+      ]
       ;set badges-present lput module-id badges-present
     ]
   ]
   ifelse use-percent
     [
-      let num-initial floor (percent-initial-infected / 100.0 * count badges)
+      set num-initial floor (percent-initial-infected / 100.0 * count badges)
       ask n-of num-initial badges
       [
         set infected? true
@@ -424,7 +431,7 @@ to update
   ]
   ifelse use-percent
   [
-    let num-initial floor (percent-initial-infected / 100.0 * count badges)
+    set num-initial floor (percent-initial-infected / 100.0 * count badges)
     ask n-of num-initial badges
     [
       set infected? true
@@ -450,7 +457,7 @@ to play
   [
     stop
   ]
-  every .05
+  every .05 * (1 / time-multiplier)
   [
     ifelse rewind?
     [
@@ -458,6 +465,8 @@ to play
     ]
     [
       set time time + 1
+      plot count turtles with [infected? = true]
+
     ]
     check
   ]
@@ -480,31 +489,17 @@ to check
     set pointer pointer + 1
   ]
   let the-link item pointer link-list
-  set time time + 1
+  ;set time time + 1
   let badge1 one-of badges with [ module-id = item 0 the-link ]
   let badge2 one-of badges with [ module-id = item 1 the-link ]
-  ifelse false ;item 0 the-link >= time
+  layout-spring badges links .1 .5 3
+  ifelse item 3 the-link = true
   [
-    ask links with [ (end1 = badge1 and end2 = badge2) or (end1 = badge2 and end2 = badge1) ]
-    [
-      user-message (word self "died")
-      set thickness .5
-      ;die
-      show word the-link "**"
-    ]
+    ask badge1 [ create-link-with badge2 [ set color red set thickness .1 ] set color blue set infected? true]
+    ask badge2 [ set color blue set infected? true]
   ]
   [
-
-    layout-spring badges links .1 .5 3
-    show the-link
-    ifelse item 3 the-link = true
-    [
-      ask badge1 [ create-link-with badge2 [ set color red set thickness .1 ] set color blue ]
-      ask badge2 [ set color blue ]
-    ]
-    [
-      ask badge1 [ create-link-with badge2 ]
-    ]
+    ask badge1 [ create-link-with badge2 ]
   ]
 end
 
@@ -513,6 +508,9 @@ to pause
 end
 
 to reset
+  clear-plot
+  ;set total-num-infected count badges with [ first-infected? = true ]
+  setup-plots
   set pointer 0
   set time 0
   clear-links
@@ -520,9 +518,12 @@ to reset
   [
     setxy random 28 + 2 random 28 + 2
     set color red
-    if first-infected? = true
+    ifelse first-infected? = true
     [
       set color blue
+    ]
+    [
+      set infected? false
     ]
     if immune? = true
     [
@@ -553,7 +554,10 @@ to fill-room
       ]
       set infected? false
       set first-infected? false
-      ;set label module-id
+      if show-label
+      [
+        set label module-id
+      ]
       set badges-present lput module-id badges-present
     ]
     set i i + 1
@@ -625,6 +629,7 @@ to fix-data
           [
             set t-list lput true t-list
             ask badge1 [ set infected? true ]
+            set total-num-infected total-num-infected + 1
           ]
           [
             set t-list lput false t-list
@@ -641,6 +646,7 @@ to fix-data
           [
             set t-list lput true t-list
             ask badge2 [ set infected? true ]
+            set total-num-infected total-num-infected + 1
           ]
           [
             set t-list lput false t-list
@@ -659,6 +665,17 @@ to fix-data
     set link-num link-num + 1
   ]
   set link-list sort-by [ [a b] -> item 2 a < item 2 b ] link-list
+  ;Set badge variables back to original state so that they update as the interactions are played back...
+  ;makes it easier to count infected badges over time, since the turtles' variables reflect their CURRENT state
+  ;and not their END state
+  ask badges
+  [
+    if first-infected? != true
+    [
+      set infected? false
+    ]
+  ]
+
 end
 
 to-report create-random-id
@@ -803,7 +820,7 @@ INPUTBOX
 1682
 394
 num-initial-infected
-5.0
+1.0
 1
 0
 Number
@@ -906,7 +923,7 @@ time
 time
 0
 1000
-208.0
+988.0
 1
 1
 NIL
@@ -1088,10 +1105,10 @@ NOTE pressing update will change the outcome of the simulation, regardless of wh
 1
 
 MONITOR
-555
-448
-626
-493
+575
+422
+646
+467
 NIL
 count links
 17
@@ -1099,10 +1116,10 @@ count links
 11
 
 MONITOR
-184
-546
-241
-591
+646
+422
+703
+467
 NIL
 pointer
 17
@@ -1133,7 +1150,7 @@ SWITCH
 67
 regard-time?
 regard-time?
-1
+0
 1
 -1000
 
@@ -1187,22 +1204,45 @@ NIL
 NIL
 1
 
-BUTTON
-843
-103
-906
-136
-finish
-find-turtles\nfix-data\n
-NIL
+INPUTBOX
+632
+344
+715
+404
+time-multiplier
+4.0
 1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
+0
+Number
+
+SWITCH
+955
+108
+1069
+141
+show-label
+show-label
 1
+1
+-1000
+
+PLOT
+16
+490
+316
+716
+Infected Turtles
+Time (ms)
+Number of Turtles
+0.0
+10.0
+0.0
+10.0
+true
+false
+"set-plot-y-range 0 total-num-infected + num-initial + 4\nset-plot-x-range 0 item 2 last link-list" ""
+PENS
+"default" 1.0 0 -2674135 true "" ""
 
 @#$#@#$#@
 ## WHAT IS IT?
