@@ -480,9 +480,18 @@ to check
   ifelse regard-time?
   [
     let next-interaction-time item 2 item (pointer + 1) link-list
-    if next-interaction-time < time
+    ifelse online?
     [
-      set pointer pointer + 1
+      if runresult next-interaction-time < time
+      [
+        set pointer pointer + 1
+      ]
+    ]
+    [
+      if next-interaction-time < time
+      [
+        set pointer pointer + 1
+      ]
     ]
   ]
   [
@@ -565,8 +574,11 @@ to fill-room
 end
 
 to end-live-sim
+  ct
+  clear-links
   set badges-present table:keys connected-badges
   fix-data
+  find-turtles
 end
 
 to create-connections
@@ -591,10 +603,19 @@ to create-connections
 end
 
 to fix-data
+  set total-num-infected count badges with [first-infected? = true]
   set link-list []
   let index 0
   let link-num 0
   set all-interactions sort-by [ [a b] -> item 2 a < item 2 b ] all-interactions
+  let max-time 0
+  ifelse online?
+  [
+    set max-time runresult item 2 last all-interactions
+  ]
+  [
+    set max-time item 2 last all-interactions
+  ]
   foreach all-interactions [
     the-link ->
     let pair []
@@ -612,7 +633,18 @@ to fix-data
       set index index + 1
     ]
     show infect-state
-    let t-list the-link
+    let t-list []
+    set t-list lput item 0 the-link t-list
+    set t-list lput item 1 the-link t-list
+    let unmod-time 0
+    ifelse online?
+    [
+      set unmod-time runresult item 2 the-link
+    ]
+    [
+      set unmod-time item 2 the-link
+    ]
+    set t-list lput floor (unmod-time / max-time * 1000) t-list
     ifelse (item 0 infect-state = true and item 1 infect-state = false) or (item 0 infect-state = false and item 1 infect-state = true)
     [
       let badge1 one-of badges with [ module-id = item 0 pair ]
@@ -675,7 +707,6 @@ to fix-data
       set infected? false
     ]
   ]
-
 end
 
 to-report create-random-id
@@ -777,7 +808,7 @@ INPUTBOX
 736
 98
 num-participants
-50.0
+30.0
 1
 0
 Number
@@ -798,7 +829,7 @@ INPUTBOX
 1680
 188
 chance-spread
-100.0
+50.0
 1
 0
 Number
@@ -809,7 +840,7 @@ INPUTBOX
 1680
 250
 chance-immune
-20.0
+10.0
 1
 0
 Number
@@ -820,7 +851,7 @@ INPUTBOX
 1682
 394
 num-initial-infected
-1.0
+2.0
 1
 0
 Number
@@ -923,7 +954,7 @@ time
 time
 0
 1000
-988.0
+1001.0
 1
 1
 NIL
@@ -981,10 +1012,10 @@ NIL
 1
 
 BUTTON
-521
-136
-664
-169
+511
+110
+654
+143
 NIL
 save-interaction-set
 NIL
@@ -998,10 +1029,10 @@ NIL
 1
 
 BUTTON
-521
-172
-661
-205
+511
+146
+651
+179
 NIL
 load-interaction-set\n
 NIL
@@ -1015,10 +1046,10 @@ NIL
 1
 
 OUTPUT
-763
-200
-1385
-566
+745
+338
+1363
+704
 11
 
 SWITCH
@@ -1044,10 +1075,10 @@ rewind?
 -1000
 
 BUTTON
-762
-158
-910
-191
+798
+300
+946
+333
 SHOW interaction list
 set which-output \"interaction-list\"\nupdate-output\n
 NIL
@@ -1061,10 +1092,10 @@ NIL
 1
 
 BUTTON
-916
-158
-1091
-191
+952
+300
+1127
+333
 SHOW number of interactions
 set which-output \"number-interactions\"\nupdate-output
 NIL
@@ -1127,10 +1158,10 @@ pointer
 11
 
 BUTTON
-1097
-158
-1216
-191
+1133
+300
+1252
+333
 SHOW statistics
 set which-output \"stats\"\nupdate-output\n\n
 NIL
@@ -1166,10 +1197,10 @@ online?
 -1000
 
 INPUTBOX
-1633
-620
-1874
-680
+2063
+24
+2304
+84
 homeroomID
 999999999
 1
@@ -1177,10 +1208,10 @@ homeroomID
 String
 
 INPUTBOX
-1633
-680
-1874
-740
+2063
+84
+2304
+144
 homeroomUUID
 11285a06-c692-4b9f-9c1e-284c5c1003aa
 1
@@ -1210,7 +1241,7 @@ INPUTBOX
 715
 404
 time-multiplier
-4.0
+2.0
 1
 0
 Number
@@ -1243,6 +1274,23 @@ false
 "set-plot-y-range 0 total-num-infected + num-initial + 4\nset-plot-x-range 0 item 2 last link-list" ""
 PENS
 "default" 1.0 0 -2674135 true "" ""
+
+BUTTON
+679
+126
+742
+159
+finish
+end-live-sim\n
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
