@@ -6,7 +6,6 @@ globals [ total-num-infected data-stream data-list num-data url prev-length new-
 ;Legit procedures
 to setup
   ca
-  reset
   setup-output
   clear-turtles
   set connected-badges table:make
@@ -43,6 +42,7 @@ to setup
       ]
     ]
   ]
+  reset
 end
 
 to go
@@ -59,7 +59,7 @@ to go
         ;Don't just assume one new member in case multiple badges join within the 1-second timespan
         let num-new-participants (current-length - prev-length)
         let index 0
-        wait 2
+        ;wait 2
         while [index < num-new-participants]
         [
           get-badge-id index
@@ -480,7 +480,7 @@ to check
   ifelse regard-time?
   [
     let next-interaction-time item 2 item (pointer + 1) link-list
-    ifelse online?
+    carefully
     [
       if runresult next-interaction-time < time
       [
@@ -707,6 +707,7 @@ to fix-data
       set infected? false
     ]
   ]
+  reset
 end
 
 to-report create-random-id
@@ -786,10 +787,10 @@ ticks
 60.0
 
 BUTTON
-511
-71
-574
-104
+542
+267
+605
+300
 NIL
 go\n
 NIL
@@ -803,84 +804,84 @@ NIL
 1
 
 INPUTBOX
-581
-38
-736
-98
+543
+303
+698
+363
 num-participants
-30.0
+50.0
 1
 0
 Number
 
 TEXTBOX
-1533
-38
-1683
-108
+1240
+22
+1390
+92
 These are variables that will affect the outcome of the simulation. Will affect the results that appear in the view.
 11
 0.0
 1
 
 INPUTBOX
-1525
-128
-1680
-188
+1232
+112
+1387
+172
 chance-spread
-50.0
+100.0
 1
 0
 Number
 
 INPUTBOX
-1525
-190
-1680
-250
+1232
+174
+1387
+234
 chance-immune
-10.0
+0.0
 1
 0
 Number
 
 INPUTBOX
-1527
-334
-1682
-394
+1234
+318
+1389
+378
 num-initial-infected
-2.0
+1.0
 1
 0
 Number
 
 TEXTBOX
-1685
-128
-1835
-184
+1392
+112
+1542
+168
 The % chance that an interactions spreads the disease from one badge to another\n
 11
 0.0
 1
 
 TEXTBOX
-1687
-200
-1837
-242
+1394
+184
+1544
+226
 The % chance that any one badge is immune to the disease
 11
 0.0
 1
 
 SWITCH
-1541
-272
-1664
-305
+1248
+256
+1371
+289
 use-percent
 use-percent
 1
@@ -888,20 +889,20 @@ use-percent
 -1000
 
 TEXTBOX
-1675
-266
-1933
-350
+1382
+250
+1640
+334
 This applies to the initial number of infected badges. Set to \"on\" to set the % of all badges that start off infected or set to \"off\" to set a literal number
 11
 0.0
 1
 
 INPUTBOX
-1527
-398
-1682
-458
+1234
+382
+1389
+442
 percent-initial-infected
 10.0
 1
@@ -909,10 +910,10 @@ percent-initial-infected
 Number
 
 TEXTBOX
-1695
-366
-1845
-408
+1402
+350
+1552
+392
 Need to set one value or the other, according to the above switch
 11
 0.0
@@ -936,20 +937,20 @@ NIL
 1
 
 TEXTBOX
-561
-238
-645
-256
+119
+505
+203
+523
 Playback Feature
 11
 0.0
 1
 
 SLIDER
-513
-259
-685
-292
+71
+526
+243
+559
 time
 time
 0
@@ -961,10 +962,10 @@ NIL
 HORIZONTAL
 
 BUTTON
-503
-303
-566
-336
+71
+563
+156
+596
 NIL
 play\n
 T
@@ -978,27 +979,10 @@ NIL
 1
 
 BUTTON
-571
-301
-636
-334
-NIL
-pause
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-BUTTON
-641
-301
-704
-334
+160
+563
+243
+596
 NIL
 reset\n
 NIL
@@ -1012,10 +996,10 @@ NIL
 1
 
 BUTTON
-511
-110
-654
-143
+541
+118
+684
+151
 NIL
 save-interaction-set
 NIL
@@ -1029,10 +1013,10 @@ NIL
 1
 
 BUTTON
-511
-146
-651
-179
+541
+154
+685
+187
 NIL
 load-interaction-set\n
 NIL
@@ -1046,39 +1030,28 @@ NIL
 1
 
 OUTPUT
-745
-338
-1363
-704
+506
+463
+1124
+784
 11
 
 SWITCH
-1167
-46
-1337
-79
+1717
+778
+1887
+811
 show-all-interactions
 show-all-interactions
 0
 1
 -1000
 
-SWITCH
-519
-350
-622
-383
-rewind?
-rewind?
-1
-1
--1000
-
 BUTTON
-798
-300
-946
-333
+559
+425
+707
+458
 SHOW interaction list
 set which-output \"interaction-list\"\nupdate-output\n
 NIL
@@ -1092,10 +1065,10 @@ NIL
 1
 
 BUTTON
-952
-300
-1127
-333
+713
+425
+888
+458
 SHOW number of interactions
 set which-output \"number-interactions\"\nupdate-output
 NIL
@@ -1109,10 +1082,10 @@ NIL
 1
 
 BUTTON
-1493
-519
-1564
-552
+1230
+481
+1301
+514
 NIL
 update\n
 NIL
@@ -1126,42 +1099,20 @@ NIL
 1
 
 TEXTBOX
-1579
-504
-1729
-574
+1316
+466
+1466
+536
 NOTE pressing update will change the outcome of the simulation, regardless of whether or not any values were changed\n
 11
 0.0
 1
 
-MONITOR
-575
-422
-646
-467
-NIL
-count links
-17
-1
-11
-
-MONITOR
-646
-422
-703
-467
-NIL
-pointer
-17
-1
-11
-
 BUTTON
-1133
-300
-1252
-333
+894
+425
+1013
+458
 SHOW statistics
 set which-output \"stats\"\nupdate-output\n\n
 NIL
@@ -1175,10 +1126,10 @@ NIL
 1
 
 SWITCH
-815
-34
-941
-67
+1158
+673
+1328
+706
 regard-time?
 regard-time?
 0
@@ -1186,10 +1137,10 @@ regard-time?
 -1000
 
 SWITCH
-970
-36
-1073
-69
+1158
+605
+1328
+638
 online?
 online?
 1
@@ -1219,10 +1170,10 @@ homeroomUUID
 String
 
 BUTTON
-763
-98
-826
-131
+577
+31
+640
+64
 NIL
 go
 T
@@ -1236,10 +1187,10 @@ NIL
 1
 
 INPUTBOX
-632
-344
-715
-404
+246
+526
+328
+596
 time-multiplier
 2.0
 1
@@ -1247,10 +1198,10 @@ time-multiplier
 Number
 
 SWITCH
-955
-108
-1069
-141
+1158
+639
+1328
+672
 show-label
 show-label
 1
@@ -1258,10 +1209,10 @@ show-label
 -1000
 
 PLOT
-16
-490
-316
-716
+759
+34
+1190
+369
 Infected Turtles
 Time (ms)
 Number of Turtles
@@ -1276,10 +1227,10 @@ PENS
 "default" 1.0 0 -2674135 true "" ""
 
 BUTTON
-679
-126
-742
-159
+643
+31
+706
+64
 finish
 end-live-sim\n
 NIL
@@ -1290,6 +1241,27 @@ NIL
 NIL
 NIL
 NIL
+1
+
+SWITCH
+1717
+743
+1820
+776
+rewind?
+rewind?
+1
+1
+-1000
+
+TEXTBOX
+1706
+726
+1856
+744
+DOESNT DO ANYTHING YET
+11
+0.0
 1
 
 @#$#@#$#@
@@ -1634,7 +1606,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.1.0
+NetLogo 6.1.1
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
