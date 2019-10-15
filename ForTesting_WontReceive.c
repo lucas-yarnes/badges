@@ -355,7 +355,7 @@ void readDataStream(int room, int numToCheck) {
 
 void pollIR() {
   clear();
-  oledprint("opened");
+  oledprint("Name: %s", device);
   while(1) {
     ir_receive(irBuff, 8);
     pause(50);

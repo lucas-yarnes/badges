@@ -58,10 +58,12 @@ to go
         let current-length length get-participants
         ;Don't just assume one new member in case multiple badges join within the 1-second timespan
         let num-new-participants (current-length - prev-length)
+        print (word "there are " num-new-participants " new participants")
         let index 0
-        ;wait 2
+        wait 2
         while [index < num-new-participants]
         [
+          ;wait 1
           get-badge-id index
           set index (index + 1)
         ]
@@ -187,10 +189,26 @@ end
 to get-badge-id [ index ]
   ;Get badge id @ specified index from the list of participants
   let badge-bucket item index get-participants
+  ;print (word "new part bucket is: " badge-bucket)
   ;Get the module name of the badge
-  let badge-mod-name parse-signal-data (first web:make-request (word url "/signal/" new-room-id "/" badge-bucket) "GET" [] [])
+  let prelim-name (first web:make-request (word url "/signal/" new-room-id "/" badge-bucket) "GET" [] [])
+  if (position "|" prelim-name = false)
+  [
+    let index2 1
+    while [index2 <= 3]
+    [
+      print word "RUN " index
+      if (position "|" prelim-name = false)
+      [
+        set prelim-name (first web:make-request (word url "/signal/" new-room-id "/" badge-bucket) "GET" [] [])
+      ]
+      set index2 index2 + 1
+    ]
+  ]
+  let badge-mod-name parse-signal-data prelim-name
+  ;print (word "new part name is: " badge-mod-name)
   ;Set the signal to 0 so the badge knows NetLogo received its connection
-  __ignore web:make-request (word url "/signal/" new-room-id "/" badge-bucket "/0") "POST" [] []
+  ;__ignore web:make-request (word url "/signal/" new-room-id "/" badge-bucket "/0") "POST" [] []
   ;Using the badges module name and bucket, make a new entry in the connect-badges table containing those two value,
   ;with the module name being the key and the bucket being the value
   if table:has-key? connected-badges badge-mod-name
@@ -450,6 +468,7 @@ to update
   fix-data
   update-output
   check
+  reset
 end
 
 to play
@@ -585,7 +604,7 @@ to create-connections
  ; ask badges [ set color red ]
   clear-links
   ;set link-list []
-  repeat random 5 + 5  ;  [5,10)
+  repeat random interaction-freq * 2 + 5 ; By default, [5, 10)
   [
     ask n-of random ((count badges / 2) + 1) badges
     [
@@ -955,7 +974,7 @@ time
 time
 0
 1000
-1001.0
+429.0
 1
 1
 NIL
@@ -1030,10 +1049,10 @@ NIL
 1
 
 OUTPUT
-506
-463
-1124
-784
+488
+479
+1106
+800
 11
 
 SWITCH
@@ -1048,10 +1067,10 @@ show-all-interactions
 -1000
 
 BUTTON
-559
-425
-707
-458
+541
+441
+689
+474
 SHOW interaction list
 set which-output \"interaction-list\"\nupdate-output\n
 NIL
@@ -1065,10 +1084,10 @@ NIL
 1
 
 BUTTON
-713
-425
-888
-458
+695
+441
+870
+474
 SHOW number of interactions
 set which-output \"number-interactions\"\nupdate-output
 NIL
@@ -1109,10 +1128,10 @@ NOTE pressing update will change the outcome of the simulation, regardless of wh
 1
 
 BUTTON
-894
-425
-1013
-458
+876
+441
+995
+474
 SHOW statistics
 set which-output \"stats\"\nupdate-output\n\n
 NIL
@@ -1143,7 +1162,7 @@ SWITCH
 638
 online?
 online?
-1
+0
 1
 -1000
 
@@ -1264,42 +1283,68 @@ DOESNT DO ANYTHING YET
 0.0
 1
 
+SLIDER
+542
+368
+698
+401
+interaction-freq
+interaction-freq
+0
+10
+5.0
+1
+1
+NIL
+HORIZONTAL
+
 @#$#@#$#@
 ## WHAT IS IT?
 
-When used in conjunction with the Parallax BadgeWX, this program can be used as a tool for helping a participatory simulation.
+When used in conjunction with the Parallax BadgeWX, this program can be used as a tool for extending a traditional participatory simulation.
 
 ## HOW IT WORKS
 
-(what rules the agents use to create the overall behavior of the model)
+First of all, this model has two main modes: online or offline. In online mode, this model will allow Parallax BadgeWX computers to join into a server room, then record the interactions amongst the badges. After the badges have finished interacting, the user can add the disease to the network and watch how it spreads to the actual participants over time. In offline mode, the model will generate a room of fake badges and falsify a set of interactions. This mode can be used either as a comparison for an online mode trial or as a way to test the varible inputs. Once the interactions are generated, you can play the interaction back using the view just as you would in online mode.
 
 ## HOW TO USE IT
 
-(how to use the model, including a description of each of the items in the Interface tab)
+Step 1:
+
+First and foremost, decide whether you want to run the model in online or offline mode and adjust the "online?" switch at the bottom right accordingly. 
+
+Online Mode:
+First you will want to click the "setup" button at the top of the screen. This will create a room that the badges can join on the server. Then, ask all of the users using a badge to power it on. Wait until all the badges are on and display the message "XXXX". Once all badges are on, click the forever "go" button at the top (the one with the circle arrow). You should notice turtles populating the display at this point. Once all turtle are accounted for, the users can then begin interacting with the badges. To interact, one user must face his/her badge at another badge and simultaneously press the two buttons at the top of the badge. Hold te buttons until the other badge reads "Interaction!". Once this happens, a line should form between the two badges involved in the interaction in Netlogo's view. Users should repeat this process until the game ends, or until they are finished interacting. At this point, click "save-interactions" and then "finish", and proceed to the next step.
+
+Offline Mode:
+Before anything else, set the value in the "num-participants" input to the number of badges you would like to exist in this simulation. Then, click "setup". You should see turtles appear in the view, matching the number you set in "num-participants". Next, decide the relative number of interactions you wish to take place. For a larger number of interactions, change the "interaction-freq" slider to a higher value, and vice versa for a smaller number of interactions. The default value is "5". Once this value is set, click the "go" button above this slider (the one without the forever circle arrow). You might notice the console printing out a lot of values. Now that this is done, proceed to the next step.
+
+Step 2:
+To play the simulation, you must first set the values you wish to use for the simulation. You will find those on the far right side of the screen. They include "chance-spread", "chance-immune", "use-percent", "num-initial-infected", and "percent-initial-infected". The descriptions of what each value does is listed to the right of each input. Once the values have been adjusted to your liking, click "update" at the bottom to make the new values take effect.
+
+Step 3:
+With all the values set, you are ready to play the simulation. To begin, look under the view box. The only value you need to set is "time-mulitplier", which will change the speed at which the interactions play out. The default value is "2", which makes the whole movie take about 30 seconds. Next, click play. You will see the interactions playing out on the view above, badges moving around, and a plot being drawn to the right of the plot. When the program reaches the end of the data set, it will automatically stop. To replay, simply click "reset" then "play". To change some of the simulation variables, change the variables first, then click "reset" then "play". 
+
+Notes:
+To reset the simulation in either model, you can press "setup". Clicking "load-interactions" has the same effect.
+
 
 ## THINGS TO NOTICE
 
-(suggested things for the user to notice while running the model)
+When running the model (by clicking "play"), a lot will happen at once, but there are some key things to look out for. All badges at the beginning either be red, indicating that they are not infected, blue, indicating initially infected badges you set in the simulation variables, or green, indicating that the badge is immune to the disease. When you click "play", lines (links) will begin forming between badges, showing that an interaction occured. When an interaction occurs that results in the spread of the disease, the line (link) will be red, and you'll see the originally uninfected badge (red) turn blue, showing that it is now infected. Outside the view, you should notice that every time one of these infectious interactions occurs, the graph will reflect this increase at the same time. 
 
 ## THINGS TO TRY
 
-(suggested things for the user to try to do (move sliders, switches, etc.) with the model)
+Above the output box, you'll see three buttons that each start with "SHOW". Try clicking these buttons and seeing the information readout that the output shows in response.
 
-## EXTENDING THE MODEL
+When running a simulation in offline mode, try clicking the one-time "go" button more than once without resetting the model. See how many more interactions occur between the fake badges as a result.
 
-(suggested things to add or change in the Code tab to make the model more complicated, detailed, accurate, etc.)
+In the bottom left corner, where you saw the "online?" switch, you will see two other switches labelled "show-label?" and "regard-time". Try switching these from their default values and seeing what changes when you play the simulation.
+
 
 ## NETLOGO FEATURES
 
-(interesting or unusual features of NetLogo that the model uses, particularly in the Code tab; or where workarounds were needed for missing features)
-
-## RELATED MODELS
-
-(models in the NetLogo Models Library and elsewhere which are of related interest)
-
-## CREDITS AND REFERENCES
-
-(a reference to the model's URL on the web if it has one, as well as any other necessary credits, citations, and links)
+This model uses the web library to enable it to communicate with the badge over the internet. It also uses the table library to store a table that links each badge's device id with a bucket id so that Netlogo can send/receive data from specific badges in the server.
 @#$#@#$#@
 default
 true
@@ -1606,7 +1651,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.1.1
+NetLogo 6.1.0
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
