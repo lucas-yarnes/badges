@@ -1,7 +1,7 @@
 extensions [ nw web ]
 breed [ badges badge ]
 badges-own [ module-id immune? infected? interactions first-infected? ]
-globals [ total-num-infected link-list all-interactions which-output timestamp prev-chance-spread num-initial prev-chance-immune prev-percent-initial-infected pointer badges-present]
+globals [ was-online? total-num-infected link-list all-interactions which-output timestamp prev-chance-spread num-initial prev-chance-immune prev-percent-initial-infected pointer badges-present]
 
 ;Legit procedures
 to setup
@@ -100,15 +100,10 @@ to load-interaction-set
   [
     file-open f
   ]
-  ;carefully [
-    set all-interactions run-result file-read-line
-    ;set line file-read-line
-    ;set badges-present run-result line
-    ifelse not file-at-end? [ user-message "there was more than one line in the file" ] [ print "File loaded successfully" ];fix-data print
-  ;]
-  ;[
-  ;  user-message ( word "There was an error in parsing the datafile:\n" error-message )
-  ;]
+  set all-interactions run-result file-read-line
+  ;set line file-read-line
+  ;set badges-present run-result line
+  ifelse not file-at-end? [ user-message "there was more than one line in the file" ] [ print "File loaded successfully" ];fix-data print
   file-close-all
   find-turtles
   fix-data
@@ -294,7 +289,7 @@ to fix-data
   let link-num 0
   set all-interactions sort-by [ [a b] -> item 2 a < item 2 b ] all-interactions
   let max-time 0
-  set max-time runresult item 2 last all-interactions
+  set max-time item 2 last all-interactions
 
   foreach all-interactions [
     the-link ->
@@ -317,9 +312,9 @@ to fix-data
     set t-list lput item 0 the-link t-list
     set t-list lput item 1 the-link t-list
     let unmod-time 0
-    set unmod-time runresult item 2 the-link
+    set unmod-time item 2 the-link
     set t-list lput floor (unmod-time / max-time * 1000) t-list
-    if (item 0 infect-state = true and item 1 infect-state = false) or (item 0 infect-state = false and item 1 infect-state = true)
+    ifelse (item 0 infect-state = true and item 1 infect-state = false) or (item 0 infect-state = false and item 1 infect-state = true)
     [
       let badge1 one-of badges with [ module-id = item 0 pair ]
       let badge2 one-of badges with [ module-id = item 1 pair ]
@@ -359,6 +354,10 @@ to fix-data
           ]
         ]
       ]
+      set link-list lput t-list link-list
+    ]
+    [
+      set t-list lput false t-list
       set link-list lput t-list link-list
     ]
     set link-num link-num + 1
@@ -436,7 +435,7 @@ INPUTBOX
 1387
 172
 chance-spread
-100.0
+50.0
 1
 0
 Number
@@ -458,7 +457,7 @@ INPUTBOX
 1389
 378
 num-initial-infected
-1.0
+2.0
 1
 0
 Number
@@ -490,7 +489,7 @@ SWITCH
 289
 use-percent
 use-percent
-1
+0
 1
 -1000
 
@@ -561,7 +560,7 @@ time
 time
 0
 1000
-1420.0
+0.0
 1
 1
 NIL
@@ -703,7 +702,7 @@ INPUTBOX
 356
 634
 time-multiplier
-2.0
+6.0
 1
 0
 Number
