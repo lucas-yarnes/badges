@@ -1,7 +1,7 @@
-extensions [ nw web ]
+extensions [ nw web table ]
 breed [ badges badge ]
 badges-own [ module-id immune? infected? interactions first-infected? ]
-globals [ mouse-was-down? turtle-one turtle-two which-turtle was-online? total-num-infected link-list all-interactions which-output timestamp prev-chance-spread num-initial prev-chance-immune prev-percent-initial-infected pointer badges-present]
+globals [ turtle-one turtle-two which-badge? mouse-was-down? total-num-infected data-stream data-list num-data url prev-length new-room-id new-room-uuid connected-badges link-list all-interactions which-output timestamp prev-chance-spread num-initial prev-chance-immune prev-percent-initial-infected pointer badges-present]
 
 ;Legit procedures
 to mouse-manager
@@ -18,11 +18,11 @@ to select-badge
     [
       if pxcor = round mouse-xcor and pycor = round mouse-ycor
       [
-        if which-turtle = 1
+        if which-badge? = 1
         [
           set turtle-one module-id
         ]
-        if which-turtle = 2
+        if which-badge? = 2
         [
           set turtle-two module-id
         ]
@@ -34,29 +34,279 @@ to setup
   ca
   setup-output
   clear-turtles
+  set connected-badges table:make
   set all-interactions []
   set link-list []
   set badges-present []
-  load-interaction-set
-  ifelse use-percent
+  set data-stream []
+  if-else online?
   [
-    set num-initial floor (percent-initial-infected / 100.0 * count badges)
-    ask n-of num-initial badges
-    [
-      set infected? true
-      set first-infected? true
-      set color blue
-    ]
+    set url "http://gallery.app.vanderbilt.edu/badgerstate"
+    check-existing
+    create-new-room
+    set prev-length length get-participants
+    set data-list []
   ]
   [
-    ask n-of num-initial-infected badges
+    fill-room
+    ifelse use-percent
     [
-      set infected? true
-      set first-infected? true
-      set color blue
+      set num-initial floor (percent-initial-infected / 100.0 * count badges)
+      ask n-of num-initial badges
+      [
+        set infected? true
+        set first-infected? true
+        set color blue
+      ]
+    ]
+    [
+      ask n-of num-initial-infected badges
+      [
+        set infected? true
+        set first-infected? true
+        set color blue
+      ]
     ]
   ]
   reset
+end
+
+to go
+  ifelse online?
+  [
+    every 1
+    [
+      ;Get the list of participants in the new room currently
+      let participants-list get-participants
+      ;If a new member(s) joined the room since last check
+      if (length participants-list != prev-length)
+      [
+        let current-length length get-participants
+        ;Don't just assume one new member in case multiple badges join within the 1-second timespan
+        let num-new-participants (current-length - prev-length)
+        print (word "there are " num-new-participants " new participants")
+        let index 0
+        wait 2
+        while [index < num-new-participants]
+        [
+          ;wait 1
+          get-badge-id index
+          set index (index + 1)
+        ]
+        set prev-length current-length
+      ]
+    ]
+    ;Check for new data from participants
+    every 2
+    [
+      let data-str (first web:make-request (word url "/data/" new-room-id "/" new-room-uuid "/" timestamp) "GET" [] [])
+      set data-list parse-data-stream data-str
+      if (length data-list > 0)
+      [
+        set num-data num-data + length data-list
+        let index 0
+        let data-seg ""
+        while [index < length data-list]
+        [
+          set data-seg item index data-list
+          set data-stream lput parse-badge-data data-seg data-stream
+          set index index + 1
+        ]
+        set timestamp parse-timestamp (first web:make-request (word url "/n-data/" new-room-id "/" new-room-uuid "/1") "GET" [] [])
+        print word (length data-list) " new entries have been made"
+        ;Check if the interaction was valid.. if it was, add the interaction to a list for aNAlySis
+        set index 0
+        set data-seg []
+        while [index < length data-list]
+        [
+          set data-seg parse-badge-data item index data-list
+          show data-seg
+          carefully [
+            do-thing data-seg
+            set all-interactions lput data-seg all-interactions
+          ]
+          []
+          set index index + 1
+        ]
+      ]
+    ]
+  ]
+  [
+    create-connections
+    fix-data
+    update-output
+    ;create-links-from-existing
+    ;generate-report
+  ]
+end
+
+to setup-game [ badges-to-add ]
+  let index 0
+  let codes []
+  foreach badges-to-add [
+    the-badge ->
+    create-badges 1 [
+      set shape "circle"
+      set size 0.5
+      set color blue
+      set xcor random 32
+      set ycor random 32
+      set module-id item index badges-to-add
+     ; set code ""
+      set label module-id
+      set interactions []
+    ]
+    set index index + 1
+  ]
+
+end
+
+to-report parse-timestamp [ data ]
+  set timestamp 0
+  let startPos position "timestamp" data
+  if (startPos != false)
+  [
+  set timestamp substring data (startPos + 11) (length data - 2)
+  ]
+  report timestamp
+end
+
+to-report parse-signal-data [ data ]
+  show data
+  let startPos position "|" data
+  ifelse (startPos = false)
+  [
+    report "none"
+  ]
+  [
+    let signal-data substring data (startPos + 2) length data
+    report signal-data
+  ]
+end
+
+to-report parse-badge-data [ data ]
+  let startPos 0
+  let comPos position "," data
+  let result []
+  while [comPos != false]
+  [
+    set result lput substring data startPos comPos result
+    set data substring data (comPos + 1) length data
+    set comPos position "," data
+  ]
+  set result lput substring data startPos length data result
+  report result
+end
+
+to-report parse-data-stream [ data ]
+  let ldata []
+  let startPos position "value" data
+  let endPos position "\",\"" data
+  while [startPos != false]
+  [
+    set ldata lput substring data (startPos + 8) endPos ldata
+    set data substring data (endPos + 8) length data
+    set startPos position "value" data
+    set endPos  position "\",\"" data
+  ]
+  report ldata
+end
+
+to get-badge-id [ index ]
+  ;Get badge id @ specified index from the list of participants
+  let badge-bucket item index get-participants
+  ;print (word "new part bucket is: " badge-bucket)
+  ;Get the module name of the badge
+  let prelim-name (first web:make-request (word url "/signal/" new-room-id "/" badge-bucket) "GET" [] [])
+  if (position "|" prelim-name = false)
+  [
+    let index2 1
+    while [index2 <= 3]
+    [
+      print word "RUN " index
+      if (position "|" prelim-name = false)
+      [
+        set prelim-name (first web:make-request (word url "/signal/" new-room-id "/" badge-bucket) "GET" [] [])
+      ]
+      set index2 index2 + 1
+    ]
+  ]
+  let badge-mod-name parse-signal-data prelim-name
+  ;print (word "new part name is: " badge-mod-name)
+  ;Set the signal to 0 so the badge knows NetLogo received its connection
+  ;__ignore web:make-request (word url "/signal/" new-room-id "/" badge-bucket "/0") "POST" [] []
+  ;Using the badges module name and bucket, make a new entry in the connect-badges table containing those two value,
+  ;with the module name being the key and the bucket being the value
+  if table:has-key? connected-badges badge-mod-name
+  [
+    ask turtles with [module-id = badge-mod-name] [die]
+  ]
+  let temp []
+  set temp lput badge-mod-name temp
+  setup-game temp
+  table:put connected-badges badge-mod-name badge-bucket
+  print (word "Badge " badge-mod-name " connected with bucket " table:get connected-badges badge-mod-name)
+end
+
+to-report get-participants
+  ;Create an empty list
+  let part-list []
+  ;Get a string that contains all of the participants in the new room
+  let new-room-participants-str (first web:make-request (word url "/participants/" new-room-id) "GET" [] [])
+  ;Convert this string into a list of participants
+  set part-list (read-from-string (replace-all new-room-participants-str "," " "))
+  ;Return that list
+  report part-list
+end
+
+to check-existing
+  let new-room-participants-list []
+  ;Get the signal currently hosted in the homeRoom
+  let data (first web:make-request (word url "/signal/" homeRoomID "/" homeRoomUUID) "GET" [] [])
+  ;Get the ID in the signal
+  set new-room-id read-from-string parse-id data
+  ;Since we are starting a new simulation, make a new room (the current room should have values from previous simulations)
+  set new-room-id (new-room-id + 1)
+  ;To see if the new room is empty, get the participants list and convert it to a NetLogo list that we can check the length of
+  let new-room-participants-str (first web:make-request (word url "/participants/" new-room-id) "GET" [] [])
+  set new-room-participants-list (read-from-string (replace-all new-room-participants-str "," " "))
+  ;While the new room isn't empty, keep generating new rooms and checking
+  while [ (length new-room-participants-list) != 0]
+  [
+    set new-room-id (new-room-id + 1)
+    set new-room-participants-str (first web:make-request (word url "/participants/" new-room-id) "GET" [] [])
+    set new-room-participants-list (read-from-string (replace-all new-room-participants-str "," " "))
+  ]
+end
+
+to-report replace-all [str target replacement]
+  let i (position target str)
+  report (ifelse-value (i = false) [ str ] [replace-all (replace-item i str replacement) target replacement])
+end
+
+to-report parse-id [ data ]
+  let startPos position "|" data
+  let endPos position "&" data
+  let id substring data (startPos + 2) endPos
+  report id
+end
+
+to create-new-room
+  ;Make a request to join the new room
+  let temp-list web:make-request (word url "/join/" new-room-id) "POST" [] []
+  ;Get the uuid out of the response to the http request
+  set new-room-uuid item 0 temp-list
+  ;Open a signal for NetLogo in the new room
+  __ignore web:make-request (word url "/signal/" new-room-id "/" new-room-uuid "/0") "POST" [] []
+  ;Update the signal in the homeRoom for the badges
+  __ignore web:make-request (word url "/signal/" homeRoomID "/" homeRoomUUID "/" new-room-id "&" new-room-uuid) "POST" [] []
+end
+
+to do-thing [interaction]
+  let badge1 one-of badges with [module-id = item 0 interaction]
+  let badge2 one-of badges with [module-id = item 1 interaction]
+  let tm item 2 interaction
+  ask badge1 [ create-link-with badge2 ]
 end
 
 to setup-output
@@ -117,6 +367,19 @@ to update-output
     [])
 end
 
+to save-interaction-set
+  file-close-all
+  let name ""
+  set name user-input "Enter file name: "
+  set name word name ".txt"
+  carefully [file-delete name] [print "file doesn't exist yet"]
+  file-open name
+  file-write all-interactions
+  ;file-print badges-present
+  file-close-all
+  print "File saved successfully"
+end
+
 to load-interaction-set
   ca
   file-close-all
@@ -126,10 +389,15 @@ to load-interaction-set
   [
     file-open f
   ]
-  set all-interactions run-result file-read-line
-  ;set line file-read-line
-  ;set badges-present run-result line
-  ifelse not file-at-end? [ user-message "there was more than one line in the file" ] [ print "File loaded successfully" ];fix-data print
+  ;carefully [
+    set all-interactions run-result file-read-line
+    ;set line file-read-line
+    ;set badges-present run-result line
+    ifelse not file-at-end? [ user-message "there was more than one line in the file" ] [ print "File loaded successfully" ];fix-data print
+  ;]
+  ;[
+  ;  user-message ( word "There was an error in parsing the datafile:\n" error-message )
+  ;]
   file-close-all
   find-turtles
   fix-data
@@ -236,9 +504,17 @@ to play
   ]
   every .05 * (1 / time-multiplier)
   [
-    set time time + 1
-    plot count turtles with [infected? = true]
+    ifelse rewind?
+    [
+      set time time - 1
+    ]
+    [
+      set time time + 1
+      set-current-plot "Infected Turtles"
+      plot count turtles with [infected? = true]
+      update-plots
 
+    ]
     check
   ]
 end
@@ -283,6 +559,10 @@ to check
   ]
 end
 
+to pause
+
+end
+
 to reset
   clear-plot
   ;set total-num-infected count badges with [ first-infected? = true ]
@@ -308,6 +588,67 @@ to reset
   ]
 end
 
+
+
+;Test procedures
+to fill-room
+  let i 0
+  while [ i < num-participants ]
+  [
+    create-badges 1 [
+      set interactions []
+      setxy random 28 + 2 random 28 + 2
+      set module-id create-random-id
+      set color red
+      ifelse random 100 < chance-immune
+      [
+        set immune? true
+        set color green
+      ]
+      [
+        set immune? false
+      ]
+      set infected? false
+      set first-infected? false
+      if show-label
+      [
+        set label module-id
+      ]
+      set badges-present lput module-id badges-present
+    ]
+    set i i + 1
+  ]
+end
+
+to end-live-sim
+  fix-data
+  clear-turtles
+  clear-links
+  set badges-present table:keys connected-badges
+  find-turtles
+end
+
+to create-connections
+ ; ask badges [ set color red ]
+  clear-links
+  ;set link-list []
+  repeat random interaction-freq * 2 + 5 ; By default, [5, 10)
+  [
+    ask n-of random ((count badges / 2) + 1) badges
+    [
+      let temp-list []
+      set temp-list lput module-id temp-list
+      let this-id module-id
+      let other-turtle one-of other badges
+      set temp-list lput [module-id] of other-turtle temp-list
+      set interactions lput [module-id] of other-turtle interactions
+      ask other-turtle [ set interactions lput this-id interactions ]
+      set temp-list lput random 1001 temp-list
+      set all-interactions lput temp-list all-interactions
+    ]
+  ]
+end
+
 to fix-data
   set total-num-infected count badges with [first-infected? = true]
   set link-list []
@@ -315,8 +656,13 @@ to fix-data
   let link-num 0
   set all-interactions sort-by [ [a b] -> item 2 a < item 2 b ] all-interactions
   let max-time 0
-  set max-time item 2 last all-interactions
-
+  ifelse online?
+  [
+    set max-time runresult item 2 last all-interactions
+  ]
+  [
+    set max-time item 2 last all-interactions
+  ]
   foreach all-interactions [
     the-link ->
     let pair []
@@ -338,7 +684,13 @@ to fix-data
     set t-list lput item 0 the-link t-list
     set t-list lput item 1 the-link t-list
     let unmod-time 0
-    set unmod-time item 2 the-link
+    ifelse online?
+    [
+      set unmod-time runresult item 2 the-link
+    ]
+    [
+      set unmod-time item 2 the-link
+    ]
     set t-list lput floor (unmod-time / max-time * 1000) t-list
     ifelse (item 0 infect-state = true and item 1 infect-state = false) or (item 0 infect-state = false and item 1 infect-state = true)
     [
@@ -383,8 +735,11 @@ to fix-data
       set link-list lput t-list link-list
     ]
     [
-      set t-list lput false t-list
-      set link-list lput t-list link-list
+      if show-all-interactions
+      [
+        set t-list lput false t-list
+        set link-list lput t-list link-list
+      ]
     ]
     set link-num link-num + 1
   ]
@@ -400,6 +755,30 @@ to fix-data
     ]
   ]
   reset
+end
+
+to-report create-random-id
+  let letters ["a" "b" "c" "d" "e" "f"]
+  let numbers ["1" "2" "3" "4" "5" "6" "7" "8" "9" "0"]
+  let name ""
+  ifelse random 10 < 5
+  [
+    set name "442"
+  ]
+  [
+    set name "2d5"
+  ]
+  repeat 3
+  [
+    ifelse random 10 < 5
+    [
+      set name word name one-of letters
+    ]
+    [
+      set name word name one-of numbers
+    ]
+  ]
+  report name
 end
 
 to create-links-from-existing
@@ -418,27 +797,23 @@ to create-links-from-existing
   ]
 end
 
-
-to drag-turtles
-  if mouse-down?
-  [
-    let grabbed min-one-of turtles [ distancexy mouse-xcor mouse-ycor ]
-    while [ mouse-down? ]
-    [
-      ask grabbed [ setxy mouse-xcor mouse-ycor ]
-    ]
-    set grabbed nobody
+to generate-report
+  print "All of the active badge's current states:"
+  ask badges [
+    print word "Name: " module-id
+    print word "Is immune? " immune?
+    print word "Is infected? " infected?
   ]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-16
+92
 10
-539
-534
+829
+748
 -1
 -1
-13.94
+19.703
 1
 10
 1
@@ -458,118 +833,13 @@ GRAPHICS-WINDOW
 ticks
 60.0
 
-TEXTBOX
-1486
-20
-1636
-90
-These are variables that will affect the outcome of the simulation. Will affect the results that appear in the view.
-11
-0.0
-1
-
-INPUTBOX
-1478
-110
-1633
-170
-chance-spread
-35.0
-1
-0
-Number
-
-INPUTBOX
-1478
-172
-1633
-232
-chance-immune
-0.0
-1
-0
-Number
-
-INPUTBOX
-1480
-316
-1635
-376
-num-initial-infected
-1.0
-1
-0
-Number
-
-TEXTBOX
-1638
-110
-1788
-166
-The % chance that an interactions spreads the disease from one badge to another\n
-11
-0.0
-1
-
-TEXTBOX
-1640
-182
-1790
-224
-The % chance that any one badge is immune to the disease
-11
-0.0
-1
-
-SWITCH
-1494
-254
-1617
-287
-use-percent
-use-percent
-1
-1
--1000
-
-TEXTBOX
-1628
-248
-1886
-332
-This applies to the initial number of infected badges. Set to \"on\" to set the % of all badges that start off infected or set to \"off\" to set a literal number
-11
-0.0
-1
-
-INPUTBOX
-1480
-380
-1635
-440
-percent-initial-infected
-10.0
-1
-0
-Number
-
-TEXTBOX
-1648
-348
-1798
-390
-Need to set one value or the other, according to the above switch
-11
-0.0
-1
-
 BUTTON
-547
-35
-610
-68
+1284
+391
+1347
+424
 NIL
-setup\n
+go\n
 NIL
 1
 T
@@ -578,6 +848,122 @@ NIL
 NIL
 NIL
 NIL
+1
+
+INPUTBOX
+1285
+427
+1440
+487
+num-participants
+50.0
+1
+0
+Number
+
+TEXTBOX
+1712
+10
+1862
+80
+These are variables that will affect the outcome of the simulation. Will affect the results that appear in the view.
+11
+0.0
+1
+
+INPUTBOX
+1704
+100
+1859
+160
+chance-spread
+100.0
+1
+0
+Number
+
+INPUTBOX
+1704
+162
+1859
+222
+chance-immune
+0.0
+1
+0
+Number
+
+INPUTBOX
+1706
+306
+1861
+366
+num-initial-infected
+1.0
+1
+0
+Number
+
+TEXTBOX
+1864
+100
+2014
+156
+The % chance that an interactions spreads the disease from one badge to another\n
+11
+0.0
+1
+
+TEXTBOX
+1866
+172
+2016
+214
+The % chance that any one badge is immune to the disease
+11
+0.0
+1
+
+SWITCH
+1720
+244
+1843
+277
+use-percent
+use-percent
+1
+1
+-1000
+
+TEXTBOX
+1854
+238
+2112
+322
+This applies to the initial number of infected badges. Set to \"on\" to set the % of all badges that start off infected or set to \"off\" to set a literal number
+11
+0.0
+1
+
+INPUTBOX
+1706
+370
+1861
+430
+percent-initial-infected
+10.0
+1
+0
+Number
+
+TEXTBOX
+1874
+338
+2024
+380
+Need to set one value or the other, according to the above switch
+11
+0.0
 1
 
 TEXTBOX
@@ -591,25 +977,25 @@ Playback Feature
 1
 
 SLIDER
-99
-564
-271
-597
+905
+36
+1077
+69
 time
 time
 0
 1000
-1001.0
+522.0
 1
 1
 NIL
 HORIZONTAL
 
 BUTTON
-99
-601
-184
-634
+907
+73
+992
+106
 NIL
 play\n
 T
@@ -623,10 +1009,10 @@ NIL
 1
 
 BUTTON
-188
-601
-271
-634
+994
+73
+1077
+106
 NIL
 reset\n
 NIL
@@ -639,17 +1025,45 @@ NIL
 NIL
 1
 
+BUTTON
+1003
+110
+1147
+143
+NIL
+load-interaction-set\n
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
 OUTPUT
-888
+1238
 46
-1354
-165
+1698
+367
 11
 
+SWITCH
+1717
+778
+1887
+811
+show-all-interactions
+show-all-interactions
+0
+1
+-1000
+
 BUTTON
-887
+1237
 10
-1035
+1385
 43
 SHOW interaction list
 set which-output \"interaction-list\"\nupdate-output\n
@@ -664,9 +1078,9 @@ NIL
 1
 
 BUTTON
-1041
+1391
 10
-1216
+1566
 43
 SHOW number of interactions
 set which-output \"number-interactions\"\nupdate-output
@@ -681,10 +1095,10 @@ NIL
 1
 
 BUTTON
-1476
-479
-1547
-512
+1702
+469
+1773
+502
 NIL
 update\n
 NIL
@@ -698,19 +1112,19 @@ NIL
 1
 
 TEXTBOX
-1562
-464
-1712
-534
+1788
+454
+1938
+524
 NOTE pressing update will change the outcome of the simulation, regardless of whether or not any values were changed\n
 11
 0.0
 1
 
 BUTTON
-1222
+1572
 10
-1341
+1691
 43
 SHOW statistics
 set which-output \"stats\"\nupdate-output\n\n
@@ -725,10 +1139,10 @@ NIL
 1
 
 SWITCH
-1462
-671
-1632
-704
+1688
+661
+1858
+694
 regard-time?
 regard-time?
 0
@@ -736,10 +1150,32 @@ regard-time?
 -1000
 
 INPUTBOX
-274
-564
-356
-634
+2063
+24
+2304
+84
+homeroomID
+999999999
+1
+0
+String
+
+INPUTBOX
+2063
+84
+2304
+144
+homeroomUUID
+11285a06-c692-4b9f-9c1e-284c5c1003aa
+1
+0
+String
+
+INPUTBOX
+1080
+36
+1162
+106
 time-multiplier
 2.0
 1
@@ -747,10 +1183,10 @@ time-multiplier
 Number
 
 SWITCH
-1462
-637
-1632
-670
+1688
+627
+1858
+660
 show-label
 show-label
 0
@@ -758,10 +1194,10 @@ show-label
 -1000
 
 PLOT
-909
-175
-1340
-510
+1471
+388
+1688
+589
 Infected Turtles
 Time (ms)
 Number of Turtles
@@ -775,11 +1211,47 @@ false
 PENS
 "default" 1.0 0 -2674135 true "" ""
 
+SWITCH
+1717
+743
+1820
+776
+rewind?
+rewind?
+1
+1
+-1000
+
+TEXTBOX
+1706
+726
+1856
+744
+DOESNT DO ANYTHING YET
+11
+0.0
+1
+
+SLIDER
+1284
+492
+1440
+525
+interaction-freq
+interaction-freq
+0
+10
+5.0
+1
+1
+NIL
+HORIZONTAL
+
 BUTTON
-123
-658
-246
-691
+881
+110
+1004
+143
 Reveal patient 0
 ask badges with [first-infected? = true] [set color white]
 NIL
@@ -792,11 +1264,78 @@ NIL
 NIL
 1
 
+SWITCH
+1688
+593
+1858
+626
+online?
+online?
+0
+1
+-1000
+
 BUTTON
-539
-584
-659
-617
+873
+492
+997
+525
+Select first turtle
+set which-badge? 1
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+1005
+492
+1128
+525
+Select second turtle
+set which-badge? 2
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+MONITOR
+873
+528
+996
+573
+NIL
+turtle-one
+17
+1
+11
+
+MONITOR
+1005
+528
+1128
+573
+NIL
+turtle-two
+17
+1
+11
+
+BUTTON
+941
+428
+1061
+461
 NIL
 mouse-manager
 T
@@ -809,69 +1348,23 @@ NIL
 NIL
 1
 
-BUTTON
-469
-662
-593
-695
-Select first turtle
-set which-turtle 1\n
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-BUTTON
-599
-662
-740
-695
-Select second turtle
-set which-turtle 2\n
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-MONITOR
-469
-700
-594
-745
-NIL
-turtle-one
-17
-1
+TEXTBOX
+951
+464
+1101
+482
+NETWORKING STUFF
 11
-
-MONITOR
-599
-700
-740
-745
-NIL
-turtle-two
-17
+25.0
 1
-11
 
 BUTTON
-469
-750
-639
-811
+873
+576
+1055
+635
 number of turtles in radius?
-ask one-of badges with [module-id = turtle-one] [ print nw:turtles-in-radius radius ]
+ask one-of badges with [module-id = turtle-one] [ print nw:turtles-in-radius radius? ]
 NIL
 1
 T
@@ -883,31 +1376,21 @@ NIL
 1
 
 INPUTBOX
-641
-750
-740
-810
-radius
-1.0
+1057
+576
+1128
+636
+radius?
+2.0
 1
 0
 Number
 
-TEXTBOX
-519
-625
-689
-665
-NETWORKING TOOLS
-16
-25.0
-1
-
 PLOT
-1059
-670
-1259
-820
+1265
+689
+1465
+839
 plot 1
 NIL
 NIL
@@ -917,26 +1400,31 @@ NIL
 10.0
 true
 false
-"" ""
+"" "set-plot-x-range 0 (1 + max [ count link-neighbors ] of badges)"
 PENS
 "default" 1.0 1 -16777216 true "" "histogram [ count link-neighbors ] of badges"
 
-BUTTON
-549
-82
-646
-115
+MONITOR
+1019
+708
+1102
+753
 NIL
-drag-turtles
-T
+count turtles
+17
 1
-T
-OBSERVER
+11
+
+MONITOR
+711
+776
+1256
+821
 NIL
-NIL
-NIL
-NIL
+[module-id] of one-of badges with [count link-neighbors = max [count link-neighbors] of badges]
+17
 1
+11
 
 @#$#@#$#@
 ## WHAT IS IT?

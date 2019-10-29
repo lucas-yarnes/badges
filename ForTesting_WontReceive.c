@@ -85,6 +85,8 @@ int main()
   //print("New roomID is %d", serverRoom);
   cog_run(pollIR, 128);
   cog_run(timer, 128);
+  clear();
+  oledprint("Name: %s", device);
   
   //getNetSignalTime(serverRoom, lastNetSignalTime);
   //strcpy(currentNetSignalTime, lastNetSignalTime);
@@ -95,8 +97,14 @@ int main()
     if (strlen(irBuff) > 4) {    
       sendToNet(serverRoom, irBuff);
       clear();
-      oledprint("Interaction!!");
-      pause(1000);
+      text_size(LARGE);
+      oledprint("INTERACTION!");
+      ledInteracted(4);
+      pause(3000);
+      text_size(SMALL);
+      clear();
+      oledprint("Name: %s", device);
+      ledDefault();
       memset(irBuff, 0, sizeof(irBuff));
       irclear();
     }
@@ -354,8 +362,6 @@ void readDataStream(int room, int numToCheck) {
 }  
 
 void pollIR() {
-  clear();
-  oledprint("Name: %s", device);
   while(1) {
     ir_receive(irBuff, 8);
     pause(50);
