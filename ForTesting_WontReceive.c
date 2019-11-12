@@ -402,7 +402,7 @@ void ledInteracted(int color){
       hex = 0x8C00FF; //purple
       break;
     case 4:
-      hex = 0x3FE0C0; //turquoise
+      hex = 0x091929; //turquoise
       break;
     case 5:
       hex = 0x0E0600; //brown
