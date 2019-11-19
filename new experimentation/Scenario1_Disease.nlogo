@@ -1,7 +1,7 @@
 extensions [ nw web ]
 breed [ badges badge ]
-badges-own [ module-id immune1? infected1? interactions first-infected1? immune2? infected2? first-infected2? ]
-globals [ infected1 infected2 immune1 immune2 noninfected infected-both immune-both mouse-was-down? turtle-one turtle-two which-turtle was-online? total-num-infected link-list all-interactions which-output timestamp prev-chance-spread-1 num-initial-1 num-initial-2 prev-chance-immune-1 prev-percent-initial-infected-1 pointer badges-present]
+badges-own [ module-id immune? infected? interactions first-infected? ]
+globals [ mouse-was-down? turtle-one turtle-two which-turtle was-online? total-num-infected link-list all-interactions which-output timestamp prev-chance-spread num-initial prev-chance-immune prev-percent-initial-infected pointer badges-present]
 
 ;Legit procedures
 to mouse-manager
@@ -32,20 +32,30 @@ end
 
 to setup
   ca
-  ;set colors of different types of turtles
-  set immune1 55
-  set immune2 65
-  set infected1 125
-  set infected2 135
-  set infected-both 15
-  set immune-both 9.9
-  set noninfected 105
   setup-output
   clear-turtles
   set all-interactions []
   set link-list []
   set badges-present []
   load-interaction-set
+  ifelse use-percent
+  [
+    set num-initial floor (percent-initial-infected / 100.0 * count badges)
+    ask n-of num-initial badges
+    [
+      set infected? true
+      set first-infected? true
+      set color blue
+    ]
+  ]
+  [
+    ask n-of num-initial-infected badges
+    [
+      set infected? true
+      set first-infected? true
+      set color blue
+    ]
+  ]
   reset
 end
 
@@ -55,7 +65,7 @@ to setup-output
     which-output = "interaction-list"
     [
       output-print "\t\t\t\t  Interactions\t\t\n\n"
-      output-print "Time of Interaction\t\tBadge1\t\tBadge2\t\tDisease1 Transmitted?\t\tDisease2 Transmitted?"
+      output-print "Time of Interaction\t\tBadge1\t\tBadge2\t\tDisease Transmitted?"
     ]
     which-output = "number-interactions"
     [
@@ -76,7 +86,7 @@ to update-output
     [
       foreach link-list [
         the-link ->
-        output-print (word item 2 the-link "\t\t\t\t" item 0 the-link "\t\t" item 1 the-link "\t\t" item 3 the-link "\t\t" item 4 the-link)
+        output-print (word item 2 the-link "\t\t\t\t" item 0 the-link "\t\t" item 1 the-link "\t\t" item 3 the-link)
       ]
     ]
     which-output = "number-interactions"
@@ -102,12 +112,13 @@ to update-output
     [
       output-print word "Total Infected Persons:\t\t\t" total-num-infected
       output-print word "Total Interactions:\t\t\t" length link-list
-      output-print word "Total Number of Immune Persons:\t\t" count badges with [immune1? = true]
+      output-print word "Total Number of Immune Persons:\t\t" count badges with [immune? = true]
     ]
     [])
 end
 
 to load-interaction-set
+  ca
   file-close-all
   user-message "Choose Dataset"
   let f user-file
@@ -122,64 +133,6 @@ to load-interaction-set
   file-close-all
   find-turtles
   fix-data
-end
-
-to set-turtle-states
-  ask badges [
-    set infected1? false
-    set first-infected1? false
-    set infected2? false
-    set first-infected2? false
-  ]
-    ifelse use-percent
-    [
-      set num-initial-1 floor (percent-initial-infected-1 / 100.0 * count badges)
-      set num-initial-2 floor (percent-initial-infected-2 / 100.0 * count badges)
-      ask n-of num-initial-1 badges
-      [
-        set infected1? true
-        set first-infected1? true
-      ]
-      ask n-of num-initial-2 badges
-      [
-        set infected2? true
-        set first-infected2? true
-      ]
-    ]
-    [
-      ask n-of num-initial-infected-1 badges
-      [
-        set infected1? true
-        set first-infected1? true
-      ]
-      ask n-of num-initial-infected-2 badges
-      [
-        set infected2? true
-        set first-infected2? true
-      ]
-    ]
-  ask badges [
-    ifelse random 100 < chance-immune-1
-    [
-      if first-infected1? != true
-      [
-        set immune1? true
-      ]
-    ]
-    [
-      set immune1? false
-    ]
-    ifelse random 100 < chance-immune-2
-    [
-      if first-infected2? != true
-      [
-        set immune2? true
-      ]
-    ]
-    [
-      set immune2? false
-    ]
-  ]
 end
 
 ;Takes a list of interactions from a file and creates badge objects for each turtle involved in some type of interaction
@@ -199,6 +152,17 @@ to find-turtles
       set interactions []
       setxy random 28 + 2 random 28 + 2
       set module-id the-badge
+      set color red
+      ifelse random 100 < chance-immune
+      [
+        set immune? true
+        set color green
+      ]
+      [
+        set immune? false
+      ]
+      set infected? false
+      set first-infected? false
       if show-label
       [
         set label module-id
@@ -206,12 +170,59 @@ to find-turtles
       ;set badges-present lput module-id badges-present
     ]
   ]
-  set-turtle-states
+  ifelse use-percent
+    [
+      set num-initial floor (percent-initial-infected / 100.0 * count badges)
+      ask n-of num-initial badges
+      [
+        set infected? true
+        set first-infected? true
+        set color blue
+      ]
+    ]
+    [
+      ask n-of num-initial-infected badges
+      [
+        set infected? true
+        set first-infected? true
+        set color blue
+      ]
+    ]
 end
 
 to update
   set link-list []
-  set-turtle-states
+  ask badges [
+    set infected? false
+    set immune? false
+    set first-infected? false
+    ifelse random 100 < chance-immune
+      [
+        set immune? true
+        set color green
+      ]
+      [
+        set immune? false
+      ]
+  ]
+  ifelse use-percent
+  [
+    set num-initial floor (percent-initial-infected / 100.0 * count badges)
+    ask n-of num-initial badges
+    [
+      set infected? true
+      set first-infected? true
+      set color blue
+    ]
+  ]
+  [
+    ask n-of num-initial-infected badges
+    [
+      set infected? true
+      set first-infected? true
+      set color blue
+    ]
+  ]
   fix-data
   update-output
   check
@@ -226,7 +237,7 @@ to play
   every .05 * (1 / time-multiplier)
   [
     set time time + 1
-    ;plot count turtles with [infected1? = true]
+    plot count turtles with [infected? = true]
 
     check
   ]
@@ -262,89 +273,43 @@ to check
   let badge1 one-of badges with [ module-id = item 0 the-link ]
   let badge2 one-of badges with [ module-id = item 1 the-link ]
   layout-spring badges links .1 .5 3
-  (ifelse item 3 the-link = true and item 4 the-link = false
+  ifelse item 3 the-link = true
   [
-      ask badge1 [ create-link-with badge2 [ set color red set thickness .1 ] set infected1? true update-turtle]
-    ask badge2 [ set infected1? true update-turtle]
-  ]
-  item 3 the-link = false and item 4 the-link = true
-  [
-      ask badge1 [create-link-with badge2 [ set color yellow set thickness .1 ] set infected2? true update-turtle]
-    ask badge2 [ set infected2? true update-turtle]
+    ask badge1 [ create-link-with badge2 [ set color red set thickness .1 ] set color blue set infected? true]
+    ask badge2 [ set color blue set infected? true]
   ]
   [
     ask badge1 [ create-link-with badge2 ]
-  ])
-end
-
-to update-turtle
-  (ifelse infected1? = true and infected2? = false
-    [
-      set color infected1
-    ]
-    infected2? = true and infected1? = false
-    [
-      set color infected2
-    ]
-    infected1? = true and infected2? = true
-    [
-      set color infected-both
-      set size 2
-    ]
-    [
-      set color noninfected
-    ])
+  ]
 end
 
 to reset
-  print "before reset"
-  ;clear-plot
-  ;set total-num-infected count badges with [ first-infected1? = true ]
+  clear-plot
+  ;set total-num-infected count badges with [ first-infected? = true ]
   setup-plots
   set pointer 0
   set time 0
   clear-links
   ask badges
   [
-    set size 1
     setxy random 28 + 2 random 28 + 2
-    set color noninfected
-    ifelse first-infected1? = true
+    set color red
+    ifelse first-infected? = true
     [
-      set color infected1
+      set color blue
     ]
     [
-      set infected1? false
+      set infected? false
     ]
-    ifelse first-infected2? = true
+    if immune? = true
     [
-      set color infected2
-    ]
-    [
-      set infected2? false
-    ]
-    if immune1? = true
-    [
-      set color immune1
-    ]
-    if immune2? = true
-    [
-      set color immune2
-    ]
-    if immune1? = true and immune2? = true
-    [
-      set color immune-both
-    ]
-    if first-infected1? = true and first-infected2? = true
-    [
-      set color infected-both
+      set color green
     ]
   ]
-  print "after reset"
 end
 
 to fix-data
-  set total-num-infected count badges with [first-infected1? = true]
+  set total-num-infected count badges with [first-infected? = true]
   set link-list []
   let index 0
   let link-num 0
@@ -355,8 +320,7 @@ to fix-data
   foreach all-interactions [
     the-link ->
     let pair []
-    let infect-state-1 []
-    let infect-state-2 []
+    let infect-state []
     set pair lput item 0 the-link pair
     set pair lput item 1 the-link pair
     show pair
@@ -365,33 +329,33 @@ to fix-data
     [
       ask badges with [ module-id = item index pair ]
       [
-        set infect-state-1 lput infected1? infect-state-1
-        set infect-state-2 lput infected2? infect-state-2
+        set infect-state lput infected? infect-state
       ]
       set index index + 1
     ]
+    show infect-state
     let t-list []
     set t-list lput item 0 the-link t-list
     set t-list lput item 1 the-link t-list
     let unmod-time 0
     set unmod-time item 2 the-link
     set t-list lput floor (unmod-time / max-time * 1000) t-list
-    ifelse (item 0 infect-state-1 = true and item 1 infect-state-1 = false) or (item 0 infect-state-1 = false and item 1 infect-state-1 = true)
+    ifelse (item 0 infect-state = true and item 1 infect-state = false) or (item 0 infect-state = false and item 1 infect-state = true)
     [
       let badge1 one-of badges with [ module-id = item 0 pair ]
       let badge2 one-of badges with [ module-id = item 1 pair ]
-      ifelse [infected1?] of badge1 = false
+      ifelse [infected?] of badge1 = false
       [
         ; Check for immunity
-        ifelse [immune1?] of badge1 = true
+        ifelse [immune?] of badge1 = true
         [
           set t-list lput false t-list
         ]
         [
-          ifelse random 100 + 1 <= chance-spread-1
+          ifelse random 100 + 1 <= chance-spread
           [
             set t-list lput true t-list
-            ask badge1 [ set infected1? true ]
+            ask badge1 [ set infected? true ]
             set total-num-infected total-num-infected + 1
           ]
           [
@@ -400,57 +364,16 @@ to fix-data
         ]
       ]
       [
-        ifelse [immune1?] of badge2 = true
+        ifelse [immune?] of badge2 = true
         [
           set t-list lput false t-list
         ]
         [
-          ifelse random 100 + 1 <= chance-spread-1
+          ifelse random 100 + 1 <= chance-spread
           [
             set t-list lput true t-list
-            ask badge2 [ set infected1? true ]
+            ask badge2 [ set infected? true ]
             set total-num-infected total-num-infected + 1
-          ]
-          [
-            set t-list lput false t-list
-          ]
-        ]
-      ]
-    ]
-    [
-      set t-list lput false t-list
-    ]
-    ifelse (item 0 infect-state-2 = true and item 1 infect-state-2 = false) or (item 0 infect-state-2 = false and item 1 infect-state-2 = true)
-    [
-      let badge1 one-of badges with [ module-id = item 0 pair ]
-      let badge2 one-of badges with [ module-id = item 1 pair ]
-      ifelse [infected2?] of badge1 = false
-      [
-        ifelse [immune2?] of badge1 = true
-        [
-          set t-list lput false t-list
-        ]
-        [
-          ifelse random 100 + 1 <= chance-spread-2
-          [
-            set t-list lput true t-list
-            ask badge1 [ set infected2? true ]
-          ]
-          [
-            set t-list lput false t-list
-          ]
-        ]
-      ]
-      [
-        ifelse [immune2?] of badge2 = true
-        [
-          set t-list lput false t-list
-        ]
-        [
-          ifelse random 100 + 1 <= chance-spread-2
-          [
-            set t-list lput true t-list
-            ask badge2 [ set infected2? true]
           ]
           [
             set t-list lput false t-list
@@ -461,8 +384,8 @@ to fix-data
     ]
     [
       set t-list lput false t-list
+      set link-list lput t-list link-list
     ]
-    set link-list lput t-list link-list
     set link-num link-num + 1
   ]
   set link-list sort-by [ [a b] -> item 2 a < item 2 b ] link-list
@@ -471,15 +394,12 @@ to fix-data
   ;and not their END state
   ask badges
   [
-    if first-infected1? != true
+    if first-infected? != true
     [
-      set infected1? false
-    ]
-    if first-infected2? != true
-    [
-      set infected2? false
+      set infected? false
     ]
   ]
+  reset
 end
 
 to create-links-from-existing
@@ -553,8 +473,8 @@ INPUTBOX
 110
 1633
 170
-chance-spread-1
-100.0
+chance-spread
+35.0
 1
 0
 Number
@@ -564,8 +484,8 @@ INPUTBOX
 172
 1633
 232
-chance-immune-1
-10.0
+chance-immune
+0.0
 1
 0
 Number
@@ -575,7 +495,7 @@ INPUTBOX
 316
 1635
 376
-num-initial-infected-1
+num-initial-infected
 1.0
 1
 0
@@ -627,7 +547,7 @@ INPUTBOX
 380
 1635
 440
-percent-initial-infected-1
+percent-initial-infected
 10.0
 1
 0
@@ -679,7 +599,7 @@ time
 time
 0
 1000
-0.0
+1001.0
 1
 1
 NIL
@@ -720,10 +640,10 @@ NIL
 1
 
 OUTPUT
-826
-48
-1472
-167
+888
+46
+1354
+165
 11
 
 BUTTON
@@ -821,7 +741,7 @@ INPUTBOX
 356
 634
 time-multiplier
-10.0
+2.0
 1
 0
 Number
@@ -833,7 +753,7 @@ SWITCH
 670
 show-label
 show-label
-1
+0
 1
 -1000
 
@@ -851,7 +771,7 @@ Number of Turtles
 10.0
 true
 false
-"set-plot-y-range 0 total-num-infected + num-initial-1 + 4\nset-plot-x-range 0 item 2 last link-list" ""
+"set-plot-y-range 0 total-num-infected + num-initial + 4\nset-plot-x-range 0 item 2 last link-list" ""
 PENS
 "default" 1.0 0 -2674135 true "" ""
 
@@ -861,7 +781,7 @@ BUTTON
 246
 691
 Reveal patient 0
-ask badges with [first-infected1? = true or first-infected2? = true] [set color white]
+ask badges with [first-infected? = true] [set color white]
 NIL
 1
 T
@@ -983,191 +903,32 @@ NETWORKING TOOLS
 25.0
 1
 
+PLOT
+1059
+670
+1259
+820
+plot 1
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"default" 1.0 1 -16777216 true "" "histogram [ count link-neighbors ] of badges"
+
 BUTTON
-613
-34
-710
-67
+549
+82
+646
+115
 NIL
 drag-turtles
 T
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-INPUTBOX
-1890
-190
-2045
-250
-chance-spread-2
-100.0
-1
-0
-Number
-
-INPUTBOX
-1890
-252
-2045
-312
-chance-immune-2
-10.0
-1
-0
-Number
-
-INPUTBOX
-1890
-314
-2045
-374
-num-initial-infected-2
-1.0
-1
-0
-Number
-
-INPUTBOX
-1890
-376
-2045
-436
-percent-initial-infected-2
-10.0
-1
-0
-Number
-
-MONITOR
-587
-163
-814
-208
-NIL
-count badges with [ immune1? = true ]
-17
-1
-11
-
-MONITOR
-587
-211
-814
-256
-NIL
-count badges with [ immune2? = true ]
-17
-1
-11
-
-MONITOR
-587
-259
-818
-304
-NIL
-count badges with [ infected1? = true ]
-17
-1
-11
-
-MONITOR
-587
-307
-818
-352
-NIL
-count badges with [ infected2? = true ]
-17
-1
-11
-
-MONITOR
-605
-477
-737
-522
-Overlapping immunity
-count badges with [ immune1? = true and immune2? = true ]
-17
-1
-11
-
-MONITOR
-605
-525
-736
-570
-Overlapping infection
-count badges with [ infected1? = true and infected2? = true ]
-17
-1
-11
-
-MONITOR
-741
-480
-838
-525
-wrong
-count badges with [ (infected1? and immune1?) or (infected2? and immune2?) ]
-17
-1
-11
-
-MONITOR
-587
-356
-841
-401
-NIL
-count badges with [ first-infected1? = true]
-17
-1
-11
-
-MONITOR
-587
-404
-848
-449
-NIL
-count badges with [ first-infected2? = false ]
-17
-1
-11
-
-BUTTON
-548
-70
-712
-103
-erase noninfectious interactions
-ask links with [color = grey] [set color black]
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-BUTTON
-552
-108
-671
-141
-bring them back
-ask links with [color = black] [set color grey]
-NIL
 1
 T
 OBSERVER

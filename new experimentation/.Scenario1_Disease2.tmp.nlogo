@@ -565,7 +565,7 @@ INPUTBOX
 1633
 232
 chance-immune-1
-10.0
+0.0
 1
 0
 Number
@@ -679,7 +679,7 @@ time
 time
 0
 1000
-0.0
+1001.0
 1
 1
 NIL
@@ -1017,7 +1017,7 @@ INPUTBOX
 2045
 312
 chance-immune-2
-10.0
+0.0
 1
 0
 Number
