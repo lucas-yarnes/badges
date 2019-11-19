@@ -54,7 +54,7 @@ void getNetSignalTime(int room, char *val);
 char getNetSignal(int room);
 void timer();
 void ledDefault();
-void ledInteracted(int color);
+void ledInteracted(char color[]);
 
 int main()                                    
 {
@@ -88,6 +88,8 @@ int main()
   clear();
   oledprint("Name: %s", device);
   
+  //setSignal(serverRoom, "0");
+  
   //getNetSignalTime(serverRoom, lastNetSignalTime);
   //strcpy(currentNetSignalTime, lastNetSignalTime);
   
@@ -99,7 +101,7 @@ int main()
       clear();
       text_size(LARGE);
       oledprint("INTERACTION!");
-      ledInteracted(4);
+      ledInteracted("207068");
       pause(3000);
       text_size(SMALL);
       clear();
@@ -108,10 +110,21 @@ int main()
       memset(irBuff, 0, sizeof(irBuff));
       irclear();
     }
+    
+    if (button(0) == 1 && button(7) == 1) {
+      checkIfReceived(serverRoom);
+      if (strcmp(data, "0") != 0 && strcmp(data, device) != 0) {
+        ledInteracted(data);
+        setSignal(serverRoom, "0");
+        pause(3000);
+        ledDefault();
+      }        
+      
+    }      
          
     //checkIfReceived(serverRoom);
     
-    if(strcmp(data, "0") == 0) {
+    /*if(strcmp(data, "0") == 0) {
       if (test == 0) {
         currentState = 2; //First time, Netlogo did this
         test = 1;
@@ -186,7 +199,7 @@ int main()
       strcpy(lastNetSignalTime, currentNetSignalTime);
     }
     cursor(0, 7);
-    oledprint("%d", timeSinceStart); 
+    oledprint("%d", timeSinceStart); */
   }
 }
 
@@ -387,11 +400,11 @@ void ledDefault() {
   
 }
 
-void ledInteracted(int color){
+void ledInteracted(char color[]) {
   
-  int hex = 0;
+  int hex = (int)strtol(color, NULL, 16);
   
-  switch (color) {
+  /*switch (color) {
     case 1:
       hex = 0xFF0000; //red
       break;
@@ -419,11 +432,10 @@ void ledInteracted(int color){
     case 9:
       hex = 0x0000FF; //blue
       break;
-  }     
+  }   */  
     
   for (int __ldx = 1; __ldx <= 4; __ldx++) {
     RGBleds[constrainInt(__ldx, 1, RGB_COUNT) - 1] = hex;
   }
-  ws2812_set(ws2812b, RGB_PIN, RGBleds, RGB_COUNT);
-  
+  ws2812_set(ws2812b, RGB_PIN, RGBleds, RGB_COUNT);  
 }  
