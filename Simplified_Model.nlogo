@@ -683,7 +683,7 @@ end
 
 to save-info
   file-close-all
-  file-delete "longterm_storage.txt"
+  ;file-delete "longterm_storage.txt"
   file-open "longterm_storage.txt"
   let info []
   set info lput (word new-room-id "," new-room-uuid "," url) info
@@ -1181,7 +1181,7 @@ INPUTBOX
 1785
 291
 target-badge
-442f2e
+2d5852
 1
 0
 String
@@ -1192,7 +1192,7 @@ INPUTBOX
 1785
 353
 data-to-send
-hello
+F5D400
 1
 0
 String
@@ -1490,7 +1490,7 @@ SWITCH
 121
 use-prev-room?
 use-prev-room?
-0
+1
 1
 -1000
 
