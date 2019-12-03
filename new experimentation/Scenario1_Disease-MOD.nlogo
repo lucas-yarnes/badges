@@ -1,35 +1,10 @@
 extensions [ nw web ]
 breed [ badges badge ]
 badges-own [ module-id immune? infected? interactions first-infected? ]
-globals [ mouse-was-down? turtle-one turtle-two which-turtle was-online? total-num-infected link-list all-interactions which-output timestamp prev-chance-spread num-initial prev-chance-immune prev-percent-initial-infected pointer badges-present]
+globals [ was-online? total-num-infected link-list all-interactions which-output timestamp prev-chance-spread num-initial prev-chance-immune prev-percent-initial-infected pointer badges-present]
+
 
 ;Legit procedures
-to mouse-manager
- set mouse-was-down? mouse-down?
-  if (mouse-was-down? = true and not mouse-down?)
-  [
-    show "clicked"
-    select-badge
-  ]
-end
-
-to select-badge
-  ask turtles
-    [
-      if pxcor = round mouse-xcor and pycor = round mouse-ycor
-      [
-        if which-turtle = 1
-        [
-          set turtle-one module-id
-        ]
-        if which-turtle = 2
-        [
-          set turtle-two module-id
-        ]
-      ]
-    ]
-end
-
 to setup
   ca
   setup-output
@@ -316,6 +291,7 @@ to fix-data
   set all-interactions sort-by [ [a b] -> item 2 a < item 2 b ] all-interactions
   let max-time 0
   set max-time item 2 last all-interactions
+  if is-string? max-time [ set max-time runresult max-time ]
 
   foreach all-interactions [
     the-link ->
@@ -339,6 +315,8 @@ to fix-data
     set t-list lput item 1 the-link t-list
     let unmod-time 0
     set unmod-time item 2 the-link
+    if is-string? unmod-time [ set unmod-time runresult unmod-time ]
+
     set t-list lput floor (unmod-time / max-time * 1000) t-list
     ifelse (item 0 infect-state = true and item 1 infect-state = false) or (item 0 infect-state = false and item 1 infect-state = true)
     [
@@ -419,6 +397,7 @@ to create-links-from-existing
 end
 
 
+
 to drag-turtles
   if mouse-down?
   [
@@ -459,31 +438,31 @@ ticks
 60.0
 
 TEXTBOX
-1486
-20
-1636
-90
+1240
+22
+1390
+92
 These are variables that will affect the outcome of the simulation. Will affect the results that appear in the view.
 11
 0.0
 1
 
 INPUTBOX
-1478
-110
-1633
-170
+1232
+112
+1387
+172
 chance-spread
-35.0
+50.0
 1
 0
 Number
 
 INPUTBOX
-1478
-172
-1633
-232
+1232
+174
+1387
+234
 chance-immune
 0.0
 1
@@ -491,41 +470,41 @@ chance-immune
 Number
 
 INPUTBOX
-1480
-316
-1635
-376
+1234
+318
+1389
+378
 num-initial-infected
-1.0
+2.0
 1
 0
 Number
 
 TEXTBOX
-1638
-110
-1788
-166
+1392
+112
+1542
+168
 The % chance that an interactions spreads the disease from one badge to another\n
 11
 0.0
 1
 
 TEXTBOX
-1640
-182
-1790
-224
+1394
+184
+1544
+226
 The % chance that any one badge is immune to the disease
 11
 0.0
 1
 
 SWITCH
-1494
-254
-1617
-287
+1248
+256
+1371
+289
 use-percent
 use-percent
 1
@@ -533,20 +512,20 @@ use-percent
 -1000
 
 TEXTBOX
-1628
-248
-1886
-332
+1382
+250
+1640
+334
 This applies to the initial number of infected badges. Set to \"on\" to set the % of all badges that start off infected or set to \"off\" to set a literal number
 11
 0.0
 1
 
 INPUTBOX
-1480
-380
-1635
-440
+1234
+382
+1389
+442
 percent-initial-infected
 10.0
 1
@@ -554,10 +533,10 @@ percent-initial-infected
 Number
 
 TEXTBOX
-1648
-348
-1798
-390
+1402
+350
+1552
+392
 Need to set one value or the other, according to the above switch
 11
 0.0
@@ -640,17 +619,17 @@ NIL
 1
 
 OUTPUT
-888
-46
-1354
-165
+562
+471
+1180
+792
 11
 
 BUTTON
-887
-10
-1035
-43
+561
+435
+709
+468
 SHOW interaction list
 set which-output \"interaction-list\"\nupdate-output\n
 NIL
@@ -664,10 +643,10 @@ NIL
 1
 
 BUTTON
-1041
-10
-1216
-43
+715
+435
+890
+468
 SHOW number of interactions
 set which-output \"number-interactions\"\nupdate-output
 NIL
@@ -681,10 +660,10 @@ NIL
 1
 
 BUTTON
-1476
-479
-1547
-512
+1230
+481
+1301
+514
 NIL
 update\n
 NIL
@@ -698,20 +677,20 @@ NIL
 1
 
 TEXTBOX
-1562
-464
-1712
-534
+1316
+466
+1466
+536
 NOTE pressing update will change the outcome of the simulation, regardless of whether or not any values were changed\n
 11
 0.0
 1
 
 BUTTON
-1222
-10
-1341
-43
+896
+435
+1015
+468
 SHOW statistics
 set which-output \"stats\"\nupdate-output\n\n
 NIL
@@ -725,10 +704,10 @@ NIL
 1
 
 SWITCH
-1462
-671
-1632
-704
+1216
+673
+1386
+706
 regard-time?
 regard-time?
 0
@@ -741,27 +720,27 @@ INPUTBOX
 356
 634
 time-multiplier
-2.0
+6.0
 1
 0
 Number
 
 SWITCH
-1462
-637
-1632
-670
+1216
+639
+1386
+672
 show-label
 show-label
-0
+1
 1
 -1000
 
 PLOT
-909
-175
-1340
-510
+759
+34
+1190
+369
 Infected Turtles
 Time (ms)
 Number of Turtles
@@ -793,139 +772,10 @@ NIL
 1
 
 BUTTON
-539
-584
-659
-617
-NIL
-mouse-manager
-T
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-BUTTON
-469
-662
-593
-695
-Select first turtle
-set which-turtle 1\n
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-BUTTON
-599
-662
-740
-695
-Select second turtle
-set which-turtle 2\n
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-MONITOR
-469
-700
-594
-745
-NIL
-turtle-one
-17
-1
-11
-
-MONITOR
-599
-700
-740
-745
-NIL
-turtle-two
-17
-1
-11
-
-BUTTON
-469
-750
-639
-811
-number of turtles in radius?
-ask one-of badges with [module-id = turtle-one] [ print nw:turtles-in-radius radius ]
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-INPUTBOX
-641
-750
-740
-810
-radius
-1.0
-1
-0
-Number
-
-TEXTBOX
-519
-625
-689
-665
-NETWORKING TOOLS
-16
-25.0
-1
-
-PLOT
-1059
-670
-1259
-820
-plot 1
-NIL
-NIL
-0.0
-10.0
-0.0
-10.0
-true
-false
-"" ""
-PENS
-"default" 1.0 1 -16777216 true "" "histogram [ count link-neighbors ] of badges"
-
-BUTTON
-549
-82
-646
-115
+597
+172
+705
+205
 NIL
 drag-turtles
 T
